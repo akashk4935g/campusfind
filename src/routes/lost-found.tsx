@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ContactReveal } from "@/components/contact-reveal";
+import { TutorialStrip } from "@/components/tutorial-strip";
 import { ItemCard } from "@/components/item-card";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,10 +26,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { CATEGORIES } from "@/lib/campus-schemas";
 import { claimItem, getLostAndFound, getMatches } from "@/lib/campus.functions";
 
-const boardQuery = queryOptions({
-  queryKey: ["lost-found"],
-  queryFn: () => getLostAndFound(),
-});
+function boardQuery(includeSamples: boolean) {
+  return queryOptions({
+    queryKey: ["lost-found", includeSamples],
+    queryFn: () => getLostAndFound({ data: { includeSamples } }),
+  });
+}
+
 
 export const Route = createFileRoute("/lost-found")({
   head: () => ({
@@ -48,7 +52,7 @@ export const Route = createFileRoute("/lost-found")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(boardQuery),
+  loader: ({ context }) => context.queryClient.ensureQueryData(boardQuery(true)),
   errorComponent: () => (
     <div className="mx-auto max-w-2xl px-4 py-24 text-center">
       <h1 className="text-3xl">The board didn't load</h1>
@@ -64,8 +68,9 @@ export const Route = createFileRoute("/lost-found")({
 });
 
 function LostFoundPage() {
-  const { data } = useSuspenseQuery(boardQuery);
   const { user } = useAuth();
+  const signedIn = Boolean(user);
+  const { data } = useSuspenseQuery(boardQuery(!signedIn));
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [claimTarget, setClaimTarget] = useState<{ id: string; title: string } | null>(null);
@@ -113,6 +118,12 @@ function LostFoundPage() {
         </Select>
       </div>
 
+      {!signedIn ? (
+        <div className="mt-8">
+          <TutorialStrip />
+        </div>
+      ) : null}
+
       <Tabs defaultValue="lost" className="mt-8">
         <TabsList>
           <TabsTrigger value="lost">Lost ({filteredLost.length})</TabsTrigger>
@@ -135,6 +146,7 @@ function LostFoundPage() {
                   date={item.date_lost}
                   status={item.status}
                   imagePath={item.image_url}
+                  sample={item.is_sample}
                   footer={<MatchButton itemId={item.id} itemType="lost" signedIn={Boolean(user)} />}
                 />
               ))}
@@ -158,6 +170,7 @@ function LostFoundPage() {
                   date={item.date_found}
                   status={item.status}
                   imagePath={item.image_url}
+                  sample={item.is_sample}
                   footer={
                     user ? (
                       <div className="space-y-2">
@@ -202,7 +215,7 @@ function filterItems<T extends { title: string; description: string; category: s
 
 function EmptyState({ label }: { label: string }) {
   return (
-    <div className="notice-card rounded-sm p-10 text-center text-sm text-muted-foreground">
+    <div className="tile p-10 text-center text-sm text-muted-foreground">
       {label}
     </div>
   );

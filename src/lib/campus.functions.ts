@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
+  boardQuerySchema,
   borrowDecisionSchema,
   borrowSchema,
   claimSchema,
@@ -29,24 +30,35 @@ import {
 
 /* ---------------------------------- public --------------------------------- */
 
-export const getBoard = createServerFn({ method: "GET" }).handler(async () => {
-  const [lost, found, resources, stats] = await Promise.all([
-    fetchLostItems(60),
-    fetchFoundItems(60),
-    fetchResources(60),
-    fetchBoardStats(),
-  ]);
-  return { lost, found, resources, stats };
-});
+export const getBoard = createServerFn({ method: "GET" })
+  .inputValidator((input: unknown) => boardQuerySchema.parse(input))
+  .handler(async ({ data }) => {
+    const [lost, found, resources, stats] = await Promise.all([
+      fetchLostItems(60, data.includeSamples),
+      fetchFoundItems(60, data.includeSamples),
+      fetchResources(60, data.includeSamples),
+      fetchBoardStats(),
+    ]);
+    return { lost, found, resources, stats };
+  });
 
-export const getLostAndFound = createServerFn({ method: "GET" }).handler(async () => {
-  const [lost, found] = await Promise.all([fetchLostItems(80), fetchFoundItems(80)]);
-  return { lost, found };
-});
+export const getLostAndFound = createServerFn({ method: "GET" })
+  .inputValidator((input: unknown) => boardQuerySchema.parse(input))
+  .handler(async ({ data }) => {
+    const [lost, found] = await Promise.all([
+      fetchLostItems(80, data.includeSamples),
+      fetchFoundItems(80, data.includeSamples),
+    ]);
+    return { lost, found };
+  });
 
-export const getResources = createServerFn({ method: "GET" }).handler(async () => {
-  return { resources: await fetchResources(80) };
-});
+export const getResources = createServerFn({ method: "GET" })
+  .inputValidator((input: unknown) => boardQuerySchema.parse(input))
+
+  .handler(async ({ data }) => {
+    return { resources: await fetchResources(80, data.includeSamples) };
+  });
+
 
 /* --------------------------------- identity -------------------------------- */
 

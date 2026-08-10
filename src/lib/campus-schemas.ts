@@ -97,3 +97,9 @@ export type LostItemInput = z.infer<typeof lostItemSchema>;
 export type FoundItemInput = z.infer<typeof foundItemSchema>;
 export type ResourceInput = z.infer<typeof resourceSchema>;
 export type ProfileInput = z.infer<typeof profileSchema>;
+
+/** Signed-out visitors get the tutorial samples; signed-in users never do. */
+export const boardQuerySchema = z
+  .object({ includeSamples: z.boolean().optional() })
+  .optional()
+  .transform((value) => ({ includeSamples: value?.includeSamples === true }));

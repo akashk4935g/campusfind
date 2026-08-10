@@ -68,6 +68,7 @@ export type Database = {
           finder_id: string
           id: string
           image_url: string | null
+          is_sample: boolean
           location_found: string
           matched_lost_item_id: string | null
           status: Database["public"]["Enums"]["found_status"]
@@ -83,6 +84,7 @@ export type Database = {
           finder_id: string
           id?: string
           image_url?: string | null
+          is_sample?: boolean
           location_found: string
           matched_lost_item_id?: string | null
           status?: Database["public"]["Enums"]["found_status"]
@@ -98,6 +100,7 @@ export type Database = {
           finder_id?: string
           id?: string
           image_url?: string | null
+          is_sample?: boolean
           location_found?: string
           matched_lost_item_id?: string | null
           status?: Database["public"]["Enums"]["found_status"]
@@ -200,6 +203,7 @@ export type Database = {
           description: string
           id: string
           image_url: string | null
+          is_sample: boolean
           location_lost: string
           matched_found_item_id: string | null
           reporter_id: string
@@ -214,6 +218,7 @@ export type Database = {
           description?: string
           id?: string
           image_url?: string | null
+          is_sample?: boolean
           location_lost: string
           matched_found_item_id?: string | null
           reporter_id: string
@@ -228,6 +233,7 @@ export type Database = {
           description?: string
           id?: string
           image_url?: string | null
+          is_sample?: boolean
           location_lost?: string
           matched_found_item_id?: string | null
           reporter_id?: string
@@ -313,6 +319,7 @@ export type Database = {
           description: string
           id: string
           image_url: string | null
+          is_sample: boolean
           item_condition: string
           owner_id: string
           title: string
@@ -325,6 +332,7 @@ export type Database = {
           description?: string
           id?: string
           image_url?: string | null
+          is_sample?: boolean
           item_condition?: string
           owner_id: string
           title: string
@@ -337,6 +345,7 @@ export type Database = {
           description?: string
           id?: string
           image_url?: string | null
+          is_sample?: boolean
           item_condition?: string
           owner_id?: string
           title?: string
