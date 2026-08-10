@@ -16,6 +16,7 @@ import { Route as LostFoundRouteImport } from './routes/lost-found'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as AuthenticatedActivityRouteImport } from './routes/_authenticated/activity'
+import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedReportFoundRouteImport } from './routes/_authenticated/report/found'
 import { Route as AuthenticatedReportLostRouteImport } from './routes/_authenticated/report/lost'
 import { Route as AuthenticatedReportResourceRouteImport } from './routes/_authenticated/report/resource'
@@ -54,6 +55,12 @@ const AuthenticatedActivityRoute = AuthenticatedActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedNotificationsRoute =
+  AuthenticatedNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedReportFoundRoute =
   AuthenticatedReportFoundRouteImport.update({
     id: '/report/found',
@@ -79,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
   '/activity': typeof AuthenticatedActivityRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/report/found': typeof AuthenticatedReportFoundRoute
   '/report/lost': typeof AuthenticatedReportLostRoute
   '/report/resource': typeof AuthenticatedReportResourceRoute
@@ -90,6 +98,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
   '/activity': typeof AuthenticatedActivityRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/report/found': typeof AuthenticatedReportFoundRoute
   '/report/lost': typeof AuthenticatedReportLostRoute
   '/report/resource': typeof AuthenticatedReportResourceRoute
@@ -103,6 +112,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
   '/_authenticated/activity': typeof AuthenticatedActivityRoute
+  '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/report/found': typeof AuthenticatedReportFoundRoute
   '/_authenticated/report/lost': typeof AuthenticatedReportLostRoute
   '/_authenticated/report/resource': typeof AuthenticatedReportResourceRoute
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/resources'
     | '/activity'
+    | '/notifications'
     | '/report/found'
     | '/report/lost'
     | '/report/resource'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/resources'
     | '/activity'
+    | '/notifications'
     | '/report/found'
     | '/report/lost'
     | '/report/resource'
@@ -139,6 +151,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/resources'
     | '/_authenticated/activity'
+    | '/_authenticated/notifications'
     | '/_authenticated/report/found'
     | '/_authenticated/report/lost'
     | '/_authenticated/report/resource'
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedActivityRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/notifications': {
+      id: '/_authenticated/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/report/found': {
       id: '/_authenticated/report/found'
       path: '/report/found'
@@ -230,6 +250,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedActivityRoute: typeof AuthenticatedActivityRoute
+  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedReportFoundRoute: typeof AuthenticatedReportFoundRoute
   AuthenticatedReportLostRoute: typeof AuthenticatedReportLostRoute
   AuthenticatedReportResourceRoute: typeof AuthenticatedReportResourceRoute
@@ -237,6 +258,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedActivityRoute: AuthenticatedActivityRoute,
+  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedReportFoundRoute: AuthenticatedReportFoundRoute,
   AuthenticatedReportLostRoute: AuthenticatedReportLostRoute,
   AuthenticatedReportResourceRoute: AuthenticatedReportResourceRoute,
