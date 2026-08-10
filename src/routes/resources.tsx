@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { BentoGrid, bentoSize } from "@/components/bento-grid";
 import { ContactReveal } from "@/components/contact-reveal";
 import { ItemCard } from "@/components/item-card";
 import { Button } from "@/components/ui/button";
@@ -21,10 +22,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { getResources, requestBorrow } from "@/lib/campus.functions";
 
-const resourcesQuery = queryOptions({
-  queryKey: ["resources"],
-  queryFn: () => getResources(),
-});
+function resourcesQuery(includeSamples: boolean) {
+  return queryOptions({
+    queryKey: ["resources", includeSamples],
+    queryFn: () => getResources({ data: { includeSamples } }),
+  });
+}
 
 export const Route = createFileRoute("/resources")({
   head: () => ({
@@ -44,7 +47,7 @@ export const Route = createFileRoute("/resources")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(resourcesQuery),
+  loader: ({ context }) => context.queryClient.ensureQueryData(resourcesQuery(true)),
   errorComponent: () => (
     <div className="mx-auto max-w-2xl px-4 py-24 text-center">
       <h1 className="text-3xl">The shelf didn't load</h1>
@@ -60,8 +63,9 @@ export const Route = createFileRoute("/resources")({
 });
 
 function ResourcesPage() {
-  const { data } = useSuspenseQuery(resourcesQuery);
   const { user } = useAuth();
+  const signedIn = Boolean(user);
+  const { data } = useSuspenseQuery(resourcesQuery(!signedIn));
   const [target, setTarget] = useState<{ id: string; title: string } | null>(null);
 
   return (
@@ -74,32 +78,34 @@ function ResourcesPage() {
           </p>
         </div>
         {user ? (
-          <Button asChild>
+          <Button asChild className="rounded-full">
             <Link to="/report/resource">Lend something</Link>
           </Button>
         ) : (
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" className="rounded-full">
             <Link to="/auth">Sign in to lend</Link>
           </Button>
         )}
       </div>
 
       {data.resources.length === 0 ? (
-        <div className="notice-card mt-8 rounded-sm p-10 text-center text-sm text-muted-foreground">
+        <div className="tile mt-8 p-10 text-center text-sm text-muted-foreground">
           The shelf is empty. Be the first to lend something.
         </div>
       ) : (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {data.resources.map((item) => (
+        <BentoGrid className="mt-8">
+          {data.resources.map((item, index) => (
             <ItemCard
               key={item.id}
               kind="resource"
+              size={bentoSize(index)}
               title={item.title}
               description={item.description}
               category={item.category}
               location={item.item_condition}
               status={item.availability}
               imagePath={item.image_url}
+              sample={item.is_sample}
               footer={
                 user ? (
                   <div className="space-y-2">
@@ -123,7 +129,7 @@ function ResourcesPage() {
               }
             />
           ))}
-        </div>
+        </BentoGrid>
       )}
 
       <BorrowDialog target={target} onClose={() => setTarget(null)} />

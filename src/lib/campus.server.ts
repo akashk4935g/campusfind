@@ -26,9 +26,12 @@ export function createPublicClient(): SupabaseClient<Database> {
   });
 }
 
-const LOST_COLUMNS = "id, title, description, category, location_lost, date_lost, image_url, status, created_at";
-const FOUND_COLUMNS = "id, title, description, category, location_found, date_found, image_url, status, created_at";
-const RESOURCE_COLUMNS = "id, title, description, category, item_condition, availability, image_url, created_at";
+const LOST_COLUMNS =
+  "id, title, description, category, location_lost, date_lost, image_url, status, created_at, is_sample";
+const FOUND_COLUMNS =
+  "id, title, description, category, location_found, date_found, image_url, status, created_at, is_sample";
+const RESOURCE_COLUMNS =
+  "id, title, description, category, item_condition, availability, image_url, created_at, is_sample";
 
 export interface PublicLostItem {
   id: string;
@@ -40,6 +43,7 @@ export interface PublicLostItem {
   image_url: string | null;
   status: string;
   created_at: string;
+  is_sample: boolean;
 }
 
 export interface PublicFoundItem {
@@ -52,6 +56,7 @@ export interface PublicFoundItem {
   image_url: string | null;
   status: string;
   created_at: string;
+  is_sample: boolean;
 }
 
 export interface PublicResource {
@@ -63,48 +68,51 @@ export interface PublicResource {
   availability: string;
   image_url: string | null;
   created_at: string;
+  is_sample: boolean;
 }
 
-export async function fetchLostItems(limit = 60): Promise<PublicLostItem[]> {
+export async function fetchLostItems(limit = 60, includeSamples = false): Promise<PublicLostItem[]> {
   const supabase = createPublicClient();
-  const { data, error } = await supabase
-    .from("lost_items")
-    .select(LOST_COLUMNS)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  let query = supabase.from("lost_items").select(LOST_COLUMNS);
+  if (!includeSamples) query = query.eq("is_sample", false);
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
   return (data ?? []) as PublicLostItem[];
 }
 
-export async function fetchFoundItems(limit = 60): Promise<PublicFoundItem[]> {
+export async function fetchFoundItems(limit = 60, includeSamples = false): Promise<PublicFoundItem[]> {
   const supabase = createPublicClient();
-  const { data, error } = await supabase
-    .from("found_items")
-    .select(FOUND_COLUMNS)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  let query = supabase.from("found_items").select(FOUND_COLUMNS);
+  if (!includeSamples) query = query.eq("is_sample", false);
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
   return (data ?? []) as PublicFoundItem[];
 }
 
-export async function fetchResources(limit = 60): Promise<PublicResource[]> {
+export async function fetchResources(limit = 60, includeSamples = false): Promise<PublicResource[]> {
   const supabase = createPublicClient();
-  const { data, error } = await supabase
-    .from("resource_listings")
-    .select(RESOURCE_COLUMNS)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  let query = supabase.from("resource_listings").select(RESOURCE_COLUMNS);
+  if (!includeSamples) query = query.eq("is_sample", false);
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
   return (data ?? []) as PublicResource[];
 }
 
+/** Counts always exclude tutorial samples so the numbers stay honest. */
 export async function fetchBoardStats() {
   const supabase = createPublicClient();
   const [lost, found, resources, resolved] = await Promise.all([
-    supabase.from("lost_items").select("id", { count: "exact", head: true }),
-    supabase.from("found_items").select("id", { count: "exact", head: true }),
-    supabase.from("resource_listings").select("id", { count: "exact", head: true }),
-    supabase.from("found_items").select("id", { count: "exact", head: true }).eq("status", "claimed"),
+    supabase.from("lost_items").select("id", { count: "exact", head: true }).eq("is_sample", false),
+    supabase.from("found_items").select("id", { count: "exact", head: true }).eq("is_sample", false),
+    supabase
+      .from("resource_listings")
+      .select("id", { count: "exact", head: true })
+      .eq("is_sample", false),
+    supabase
+      .from("found_items")
+      .select("id", { count: "exact", head: true })
+      .eq("is_sample", false)
+      .eq("status", "claimed"),
   ]);
 
   return {
@@ -114,6 +122,7 @@ export async function fetchBoardStats() {
     reunitedCount: resolved.count ?? 0,
   };
 }
+
 
 /** Every write path calls this so the reporter always has a profile row. */
 export async function ensureProfile(supabase: AuthedClient, userId: string, fallbackName?: string) {
@@ -163,6 +172,7 @@ export async function suggestMatches(
     const { data: candidates } = await supabase
       .from("found_items")
       .select(FOUND_COLUMNS)
+      .eq("is_sample", false)
       .neq("status", "claimed")
       .limit(200);
     return rankMatches(toMatchable(target as PublicLostItem), (candidates ?? []).map((row) => toMatchable(row as PublicFoundItem)));
@@ -177,8 +187,10 @@ export async function suggestMatches(
   const { data: candidates } = await supabase
     .from("lost_items")
     .select(LOST_COLUMNS)
+    .eq("is_sample", false)
     .neq("status", "resolved")
     .limit(200);
+
   return rankMatches(toMatchable(target as PublicFoundItem), (candidates ?? []).map((row) => toMatchable(row as PublicLostItem)));
 }
 
