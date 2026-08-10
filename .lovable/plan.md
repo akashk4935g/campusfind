@@ -29,6 +29,21 @@ Generate three rendered design directions for a campus lost & found product and 
 - Migration includes a small set of seeded demo items and resources so the first screens aren't empty.
 - Routes: `/` (landing), `/lost-found`, `/report/lost`, `/report/found`, `/resources`, `/activity`, `/notifications`, `/admin`, `/auth`, `/reset-password`. Authenticated pages sit under an `_authenticated` layout.
 
+## Data security
+
+The backend is Lovable Cloud (managed Postgres + auth + storage), so user data never sits in client code or local storage.
+
+- Row Level Security is on for every table, with policies scoped to `auth.uid()`. A user can only read and edit their own reports, claims, listings, borrow requests, and notifications.
+- Roles live in a separate `user_roles` table checked through a security-definer `has_role` function — never a role column on the profile — so admin rights can't be escalated from the client.
+- Personal contact details are never returned to browsing users. Public browse queries select only safe columns (title, category, location, date, photo); contact info is released by a server function only to the item owner, an approved counterparty, or an admin.
+- All reads and writes go through server functions with an authenticated Supabase client and Zod-validated input; ownership is always derived from the verified session, never from data the browser sends.
+- Passwords are handled by Cloud auth (hashed, never stored by the app); leaked-password protection enabled. No secrets or service keys reach the browser bundle.
+- Uploaded photos live in a storage bucket with per-user path policies, so one student can't overwrite or read another's private uploads.
+- Item claims and borrow approvals are authorized server-side, so a user can't approve their own claim or act on someone else's item.
+- A security scan runs after the backend is in place and any findings are fixed before wrap-up.
+
+
+
 ## Not carried over
 
 Gemini/AI Studio wiring, Firebase rules, and the Express server files — none of that runs on this stack. If you want AI-assisted matching later, it can be added through the built-in AI gateway.
