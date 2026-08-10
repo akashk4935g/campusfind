@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as LostFoundRouteImport } from './routes/lost-found'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ResourcesRouteImport } from './routes/resources'
+import { Route as AuthenticatedActivityRouteImport } from './routes/_authenticated/activity'
 import { Route as AuthenticatedReportFoundRouteImport } from './routes/_authenticated/report/found'
 import { Route as AuthenticatedReportLostRouteImport } from './routes/_authenticated/report/lost'
 import { Route as AuthenticatedReportResourceRouteImport } from './routes/_authenticated/report/resource'
@@ -48,6 +49,11 @@ const ResourcesRoute = ResourcesRouteImport.update({
   path: '/resources',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedActivityRoute = AuthenticatedActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedReportFoundRoute =
   AuthenticatedReportFoundRouteImport.update({
     id: '/report/found',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/lost-found': typeof LostFoundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
+  '/activity': typeof AuthenticatedActivityRoute
   '/report/found': typeof AuthenticatedReportFoundRoute
   '/report/lost': typeof AuthenticatedReportLostRoute
   '/report/resource': typeof AuthenticatedReportResourceRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/lost-found': typeof LostFoundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
+  '/activity': typeof AuthenticatedActivityRoute
   '/report/found': typeof AuthenticatedReportFoundRoute
   '/report/lost': typeof AuthenticatedReportLostRoute
   '/report/resource': typeof AuthenticatedReportResourceRoute
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/lost-found': typeof LostFoundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
+  '/_authenticated/activity': typeof AuthenticatedActivityRoute
   '/_authenticated/report/found': typeof AuthenticatedReportFoundRoute
   '/_authenticated/report/lost': typeof AuthenticatedReportLostRoute
   '/_authenticated/report/resource': typeof AuthenticatedReportResourceRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/lost-found'
     | '/reset-password'
     | '/resources'
+    | '/activity'
     | '/report/found'
     | '/report/lost'
     | '/report/resource'
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/lost-found'
     | '/reset-password'
     | '/resources'
+    | '/activity'
     | '/report/found'
     | '/report/lost'
     | '/report/resource'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/lost-found'
     | '/reset-password'
     | '/resources'
+    | '/_authenticated/activity'
     | '/_authenticated/report/found'
     | '/_authenticated/report/lost'
     | '/_authenticated/report/resource'
@@ -185,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/activity': {
+      id: '/_authenticated/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof AuthenticatedActivityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/report/found': {
       id: '/_authenticated/report/found'
       path: '/report/found'
@@ -210,12 +229,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedActivityRoute: typeof AuthenticatedActivityRoute
   AuthenticatedReportFoundRoute: typeof AuthenticatedReportFoundRoute
   AuthenticatedReportLostRoute: typeof AuthenticatedReportLostRoute
   AuthenticatedReportResourceRoute: typeof AuthenticatedReportResourceRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedActivityRoute: AuthenticatedActivityRoute,
   AuthenticatedReportFoundRoute: AuthenticatedReportFoundRoute,
   AuthenticatedReportLostRoute: AuthenticatedReportLostRoute,
   AuthenticatedReportResourceRoute: AuthenticatedReportResourceRoute,
