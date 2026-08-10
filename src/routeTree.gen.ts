@@ -17,6 +17,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as AuthenticatedReportFoundRouteImport } from './routes/_authenticated/report/found'
 import { Route as AuthenticatedReportLostRouteImport } from './routes/_authenticated/report/lost'
+import { Route as AuthenticatedReportResourceRouteImport } from './routes/_authenticated/report/resource'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,12 @@ const AuthenticatedReportLostRoute = AuthenticatedReportLostRouteImport.update({
   path: '/report/lost',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedReportResourceRoute =
+  AuthenticatedReportResourceRouteImport.update({
+    id: '/report/resource',
+    path: '/report/resource',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/resources': typeof ResourcesRoute
   '/report/found': typeof AuthenticatedReportFoundRoute
   '/report/lost': typeof AuthenticatedReportLostRoute
+  '/report/resource': typeof AuthenticatedReportResourceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -76,6 +84,7 @@ export interface FileRoutesByTo {
   '/resources': typeof ResourcesRoute
   '/report/found': typeof AuthenticatedReportFoundRoute
   '/report/lost': typeof AuthenticatedReportLostRoute
+  '/report/resource': typeof AuthenticatedReportResourceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -87,6 +96,7 @@ export interface FileRoutesById {
   '/resources': typeof ResourcesRoute
   '/_authenticated/report/found': typeof AuthenticatedReportFoundRoute
   '/_authenticated/report/lost': typeof AuthenticatedReportLostRoute
+  '/_authenticated/report/resource': typeof AuthenticatedReportResourceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/resources'
     | '/report/found'
     | '/report/lost'
+    | '/report/resource'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/resources'
     | '/report/found'
     | '/report/lost'
+    | '/report/resource'
   id:
     | '__root__'
     | '/'
@@ -117,6 +129,7 @@ export interface FileRouteTypes {
     | '/resources'
     | '/_authenticated/report/found'
     | '/_authenticated/report/lost'
+    | '/_authenticated/report/resource'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -186,17 +199,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReportLostRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/report/resource': {
+      id: '/_authenticated/report/resource'
+      path: '/report/resource'
+      fullPath: '/report/resource'
+      preLoaderRoute: typeof AuthenticatedReportResourceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedReportFoundRoute: typeof AuthenticatedReportFoundRoute
   AuthenticatedReportLostRoute: typeof AuthenticatedReportLostRoute
+  AuthenticatedReportResourceRoute: typeof AuthenticatedReportResourceRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReportFoundRoute: AuthenticatedReportFoundRoute,
   AuthenticatedReportLostRoute: AuthenticatedReportLostRoute,
+  AuthenticatedReportResourceRoute: AuthenticatedReportResourceRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
