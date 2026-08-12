@@ -108,16 +108,36 @@ function ResourcesPage() {
               sample={item.is_sample}
               footer={
                 user ? (
-                  <div className="space-y-2">
-                    <Button
-                      size="sm"
-                      disabled={item.availability !== "available"}
-                      onClick={() => setTarget({ id: item.id, title: item.title })}
-                    >
-                      {item.availability === "available" ? "Request to borrow" : "Currently lent out"}
-                    </Button>
-                    <ContactReveal itemType="resource" itemId={item.id} />
-                  </div>
+                  item.owner_id === user.id ? (
+                    <div className="space-y-2">
+                      <span className="tag border-transparent bg-secondary text-secondary-foreground">
+                        Your listing
+                      </span>
+                      <p className="text-xs text-muted-foreground">
+                        <Link to="/activity" className="underline">
+                          Review requests
+                        </Link>{" "}
+                        for this item.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Button
+                        size="sm"
+                        disabled={item.availability !== "available" || item.is_sample}
+                        onClick={() => setTarget({ id: item.id, title: item.title })}
+                      >
+                        {item.is_sample
+                          ? "Demo listing"
+                          : item.availability === "available"
+                            ? "Request to borrow"
+                            : "Currently lent out"}
+                      </Button>
+                      {item.is_sample ? null : (
+                        <ContactReveal itemType="resource" itemId={item.id} />
+                      )}
+                    </div>
+                  )
                 ) : (
                   <p className="text-xs text-muted-foreground">
                     <Link to="/auth" className="underline">
