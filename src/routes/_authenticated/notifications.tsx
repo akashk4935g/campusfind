@@ -1,11 +1,12 @@
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { BellRing } from "lucide-react";
+import { BellRing, Check, HandHeart, PackageSearch, Sparkles } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getNotifications, markNotificationsRead } from "@/lib/campus.functions";
+import { getNotifications, markNotificationRead, markNotificationsRead } from "@/lib/campus.functions";
+import { cn } from "@/lib/utils";
 
 const notificationsQuery = queryOptions({
   queryKey: ["notifications"],
@@ -37,6 +38,12 @@ function NotificationsPage() {
   const { data } = useSuspenseQuery(notificationsQuery);
   const queryClient = useQueryClient();
   const markRead = useServerFn(markNotificationsRead);
+  const markOne = useServerFn(markNotificationRead);
+
+  const oneMutation = useMutation({
+    mutationFn: (id: string) => markOne({ data: { id } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  });
 
   const mutation = useMutation({
     mutationFn: () => markRead(),
@@ -68,17 +75,36 @@ function NotificationsPage() {
       ) : (
         <ul className="mt-8 space-y-3">
           {data.notifications.map((item) => (
-            <li key={item.id} className="notice-card flex gap-3 rounded-sm p-4">
-              <BellRing className="mt-1 size-4 shrink-0 text-primary" />
+            <li
+              key={item.id}
+              className={cn(
+                "notice-card flex gap-3 rounded-sm p-4",
+                item.read ? "opacity-70" : "ring-1 ring-primary/30",
+              )}
+            >
+              <KindIcon kind={item.kind} />
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-semibold">{item.title}</p>
                   {!item.read ? <Badge className="bg-primary">New</Badge> : null}
                 </div>
                 <p className="text-sm text-muted-foreground">{item.body}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {new Date(item.created_at).toLocaleString()}
-                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(item.created_at).toLocaleString()}
+                  </p>
+                  {!item.read ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => oneMutation.mutate(item.id)}
+                      disabled={oneMutation.isPending}
+                    >
+                      <Check className="mr-1 size-3" /> Mark read
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             </li>
           ))}
@@ -86,4 +112,9 @@ function NotificationsPage() {
       )}
     </div>
   );
+}
+
+function KindIcon({ kind }: { kind: string }) {
+  const Icon = kind === "claim" ? PackageSearch : kind === "borrow" ? HandHeart : kind === "match" ? Sparkles : BellRing;
+  return <Icon className="mt-1 size-4 shrink-0 text-primary" />;
 }
