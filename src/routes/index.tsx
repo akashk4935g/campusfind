@@ -33,7 +33,15 @@ export const Route = createFileRoute("/")({
           "Smart matching reunites lost campus belongings and a shared shelf keeps resources circulating.",
       },
       { property: "og:type", content: "website" },
+      {
+        property: "og:image",
+        content: "https://exact-display-matcher.lovable.app/campusfind-og.png",
+      },
       { name: "twitter:card", content: "summary_large_image" },
+      {
+        name: "twitter:image",
+        content: "https://exact-display-matcher.lovable.app/campusfind-og.png",
+      },
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(boardQuery(true)),
