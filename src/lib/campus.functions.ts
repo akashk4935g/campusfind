@@ -12,10 +12,13 @@ import {
   lostItemSchema,
   profileSchema,
   matchRequestSchema,
+  notificationIdSchema,
   resourceSchema,
 } from "./campus-schemas";
 import {
+  displayNameFromClaims,
   ensureProfile,
+  fetchDashboardSummary,
   fetchBoardStats,
   fetchFoundItems,
   fetchLostItems,
@@ -65,16 +68,48 @@ export const getResources = createServerFn({ method: "GET" })
 export const getMe = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await ensureProfile(context.supabase, context.userId, String(context.claims["email"] ?? ""));
+    await ensureProfile(context.supabase, context.userId, displayNameFromClaims(context.claims as Record<string, unknown>));
     const [{ data: profile }, admin] = await Promise.all([
       context.supabase
         .from("profiles")
-        .select("id, full_name, campus, contact_info")
+        .select("id, full_name, campus, contact_info, avatar_url, created_at")
         .eq("id", context.userId)
         .maybeSingle(),
       isAdmin(context.supabase, context.userId),
     ]);
-    return { profile, isAdmin: admin };
+    return {
+      profile,
+      isAdmin: admin,
+      userId: context.userId,
+      email: String((context.claims as Record<string, unknown>)["email"] ?? ""),
+    };
+  });
+
+export const getDashboard = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await ensureProfile(
+      context.supabase,
+      context.userId,
+      displayNameFromClaims(context.claims as Record<string, unknown>),
+    );
+
+    const [{ data: profile }, summary, admin, { data: alerts }] = await Promise.all([
+      context.supabase
+        .from("profiles")
+        .select("id, full_name, campus, contact_info, avatar_url, created_at")
+        .eq("id", context.userId)
+        .maybeSingle(),
+      fetchDashboardSummary(context.supabase, context.userId),
+      isAdmin(context.supabase, context.userId),
+      context.supabase
+        .from("notifications")
+        .select("id, kind, title, body, read, created_at")
+        .order("created_at", { ascending: false })
+        .limit(6),
+    ]);
+
+    return { profile, summary, isAdmin: admin, alerts: alerts ?? [] };
   });
 
 export const saveProfile = createServerFn({ method: "POST" })
@@ -100,7 +135,7 @@ export const createLostItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => lostItemSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await ensureProfile(context.supabase, context.userId, String(context.claims["email"] ?? ""));
+    await ensureProfile(context.supabase, context.userId, displayNameFromClaims(context.claims as Record<string, unknown>));
     const { data: row, error } = await context.supabase
       .from("lost_items")
       .insert({
@@ -133,7 +168,7 @@ export const createFoundItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => foundItemSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await ensureProfile(context.supabase, context.userId, String(context.claims["email"] ?? ""));
+    await ensureProfile(context.supabase, context.userId, displayNameFromClaims(context.claims as Record<string, unknown>));
     const { data: row, error } = await context.supabase
       .from("found_items")
       .insert({
@@ -158,7 +193,7 @@ export const createResource = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => resourceSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await ensureProfile(context.supabase, context.userId, String(context.claims["email"] ?? ""));
+    await ensureProfile(context.supabase, context.userId, displayNameFromClaims(context.claims as Record<string, unknown>));
     const { data: row, error } = await context.supabase
       .from("resource_listings")
       .insert({
@@ -189,7 +224,7 @@ export const claimItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => claimSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await ensureProfile(context.supabase, context.userId, String(context.claims["email"] ?? ""));
+    await ensureProfile(context.supabase, context.userId, displayNameFromClaims(context.claims as Record<string, unknown>));
 
     const { data: item } = await context.supabase
       .from("found_items")
@@ -269,7 +304,7 @@ export const requestBorrow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => borrowSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await ensureProfile(context.supabase, context.userId, String(context.claims["email"] ?? ""));
+    await ensureProfile(context.supabase, context.userId, displayNameFromClaims(context.claims as Record<string, unknown>));
 
     const { data: resource } = await context.supabase
       .from("resource_listings")
@@ -382,6 +417,19 @@ export const markNotificationsRead = createServerFn({ method: "POST" })
       .update({ read: true })
       .eq("user_id", context.userId)
       .eq("read", false);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const markNotificationRead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => notificationIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("notifications")
+      .update({ read: true })
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
