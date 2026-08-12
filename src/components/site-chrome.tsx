@@ -81,7 +81,13 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto grid h-16 max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 md:flex">
         <Link to="/" className="flex min-w-0 items-center gap-2">
-          <span className="iridescent size-7 shrink-0 rounded-full" />
+          <img
+            src={logoMark}
+            alt="CampusFind logo"
+            width={1024}
+            height={1024}
+            className="size-8 shrink-0"
+          />
           <span className="truncate font-display text-2xl leading-none">CampusFind</span>
         </Link>
 
@@ -244,7 +250,17 @@ export function SiteFooter() {
   return (
     <footer className="border-t border-border py-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-        <p>CampusFind — lost, found, lent.</p>
+        <p className="flex items-center gap-2">
+          <img
+            src={logoMark}
+            alt=""
+            width={1024}
+            height={1024}
+            loading="lazy"
+            className="size-5"
+          />
+          CampusFind — lost, found, lent.
+        </p>
         <p>Contact details stay private until a match is approved.</p>
       </div>
     </footer>
