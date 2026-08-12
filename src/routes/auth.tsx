@@ -42,7 +42,7 @@ function AuthPage() {
   const [sent, setSent] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/activity", replace: true });
+    if (!loading && user) navigate({ to: "/dashboard", replace: true });
   }, [loading, user, navigate]);
 
   async function handleSignIn(event: React.FormEvent) {
@@ -54,7 +54,7 @@ function AuthPage() {
       toast.error(error.message);
       return;
     }
-    navigate({ to: "/activity", replace: true });
+    navigate({ to: "/dashboard", replace: true });
   }
 
   async function handleSignUp(event: React.FormEvent) {
@@ -77,7 +77,7 @@ function AuthPage() {
       setSent(true);
       return;
     }
-    navigate({ to: "/activity", replace: true });
+    navigate({ to: "/dashboard", replace: true });
   }
 
   async function handleGoogle() {
@@ -89,7 +89,7 @@ function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/activity", replace: true });
+    navigate({ to: "/dashboard", replace: true });
   }
 
   async function handleReset() {
