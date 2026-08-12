@@ -1,4 +1,5 @@
 import { Link, useRouter } from "@tanstack/react-router";
+import logoMark from "@/assets/campusfind-logo.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
