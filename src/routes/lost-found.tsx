@@ -147,7 +147,12 @@ function LostFoundPage() {
                   status={item.status}
                   imagePath={item.image_url}
                   sample={item.is_sample}
-                  footer={<MatchButton itemId={item.id} itemType="lost" signedIn={Boolean(user)} />}
+                  footer={
+                    <div className="space-y-2">
+                      {user && item.reporter_id === user.id ? <OwnPostTag /> : null}
+                      <MatchButton itemId={item.id} itemType="lost" signedIn={Boolean(user)} />
+                    </div>
+                  }
                 />
               ))}
             </div>
@@ -173,16 +178,33 @@ function LostFoundPage() {
                   sample={item.is_sample}
                   footer={
                     user ? (
-                      <div className="space-y-2">
-                        <Button
-                          size="sm"
-                          disabled={item.status === "claimed"}
-                          onClick={() => setClaimTarget({ id: item.id, title: item.title })}
-                        >
-                          {item.status === "claimed" ? "Already handed over" : "This is mine"}
-                        </Button>
-                        <ContactReveal itemType="found" itemId={item.id} />
-                      </div>
+                      item.finder_id === user.id ? (
+                        <div className="space-y-2">
+                          <OwnPostTag />
+                          <p className="text-xs text-muted-foreground">
+                            You handed this in.{" "}
+                            <Link to="/activity" className="underline">
+                              Review claims
+                            </Link>
+                            .
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Button
+                            size="sm"
+                            disabled={item.status === "claimed" || item.is_sample}
+                            onClick={() => setClaimTarget({ id: item.id, title: item.title })}
+                          >
+                            {item.is_sample
+                              ? "Demo item"
+                              : item.status === "claimed"
+                                ? "Already handed over"
+                                : "This is mine"}
+                          </Button>
+                          {item.is_sample ? null : <ContactReveal itemType="found" itemId={item.id} />}
+                        </div>
+                      )
                     ) : (
                       <SignInPrompt action="claim this item" />
                     )
@@ -211,6 +233,12 @@ function filterItems<T extends { title: string; description: string; category: s
     if (!needle) return true;
     return `${item.title} ${item.description} ${locationOf(item)}`.toLowerCase().includes(needle);
   });
+}
+
+function OwnPostTag() {
+  return (
+    <span className="tag border-transparent bg-secondary text-secondary-foreground">Your post</span>
+  );
 }
 
 function EmptyState({ label }: { label: string }) {

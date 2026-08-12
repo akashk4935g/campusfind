@@ -1,6 +1,16 @@
 import { Link, useRouter } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { Bell, ChevronDown, HandHeart, LogOut, Menu, PackageSearch, Search } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Bell,
+  ChevronDown,
+  HandHeart,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  PackageSearch,
+  Search,
+  UserRound,
+} from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getMe, getNotifications } from "@/lib/campus.functions";
 import { cn } from "@/lib/utils";
 
 const publicLinks = [
@@ -19,7 +30,10 @@ const publicLinks = [
   { to: "/resources", label: "Shelf" },
 ] as const;
 
-const privateLinks = [{ to: "/activity", label: "Activity" }] as const;
+const privateLinks = [
+  { to: "/dashboard", label: "Dashboard" },
+  { to: "/activity", label: "Activity" },
+] as const;
 
 const postLinks = [
   { to: "/report/lost", label: "I lost something", icon: Search },
@@ -32,6 +46,27 @@ export function SiteHeader() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+
+  const { data: alerts } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => getNotifications(),
+    enabled: Boolean(user),
+    refetchInterval: 60_000,
+  });
+  const { data: me } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => getMe(),
+    enabled: Boolean(user),
+  });
+  const unread = (alerts?.notifications ?? []).filter((item) => !item.read).length;
+  const displayName = me?.profile?.full_name ?? "Account";
+  const initials = displayName
+    .split(" ")
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   async function handleSignOut() {
     await queryClient.cancelQueries();
@@ -69,14 +104,59 @@ export function SiteHeader() {
           </div>
           {!loading && user ? (
             <>
-              <Button asChild variant="ghost" size="icon" aria-label="Notifications">
-                <Link to="/notifications">
+              <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+              >
+                <Link to="/notifications" className="relative">
                   <Bell className="size-4" />
+                  {unread > 0 ? (
+                    <span className="absolute -right-0.5 -top-0.5 grid min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-4 text-primary-foreground">
+                      {unread > 9 ? "9+" : unread}
+                    </span>
+                  ) : null}
                 </Link>
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                <LogOut className="mr-1 size-3.5" /> Sign out
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="rounded-full pl-1">
+                    <span className="iridescent mr-2 grid size-6 place-items-center rounded-full text-[10px] font-semibold text-foreground">
+                      {initials || "?"}
+                    </span>
+                    <span className="hidden max-w-24 truncate sm:inline">{displayName}</span>
+                    <ChevronDown className="ml-1 size-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="flex items-center gap-2">
+                      <LayoutDashboard className="size-3.5 text-primary" /> Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="flex items-center gap-2">
+                      <UserRound className="size-3.5 text-primary" /> Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/activity" className="flex items-center gap-2">
+                      <PackageSearch className="size-3.5 text-primary" /> My activity
+                    </Link>
+                  </DropdownMenuItem>
+                  {me?.isAdmin ? (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin" className="flex items-center gap-2">
+                        <HandHeart className="size-3.5 text-primary" /> Admin
+                      </Link>
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2">
+                    <LogOut className="size-3.5" /> Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           ) : null}
           {!loading && !user ? (
@@ -108,7 +188,16 @@ export function SiteHeader() {
           </Link>
         ))}
         <div className="mt-2 space-y-1 border-t border-border pt-3">
-          {postLinks.map((link) => (
+          {user ? (
+          <Link
+            to="/profile"
+            onClick={() => setOpen(false)}
+            className="block py-2 text-sm font-medium text-muted-foreground"
+          >
+            Profile
+          </Link>
+        ) : null}
+        {postLinks.map((link) => (
             <Link
               key={link.to}
               to={user ? link.to : "/auth"}

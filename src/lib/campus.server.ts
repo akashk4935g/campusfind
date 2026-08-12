@@ -27,14 +27,15 @@ export function createPublicClient(): SupabaseClient<Database> {
 }
 
 const LOST_COLUMNS =
-  "id, title, description, category, location_lost, date_lost, image_url, status, created_at, is_sample";
+  "id, reporter_id, title, description, category, location_lost, date_lost, image_url, status, created_at, is_sample";
 const FOUND_COLUMNS =
-  "id, title, description, category, location_found, date_found, image_url, status, created_at, is_sample";
+  "id, finder_id, title, description, category, location_found, date_found, image_url, status, created_at, is_sample";
 const RESOURCE_COLUMNS =
-  "id, title, description, category, item_condition, availability, image_url, created_at, is_sample";
+  "id, owner_id, title, description, category, item_condition, availability, image_url, created_at, is_sample";
 
 export interface PublicLostItem {
   id: string;
+  reporter_id: string;
   title: string;
   description: string;
   category: string;
@@ -48,6 +49,7 @@ export interface PublicLostItem {
 
 export interface PublicFoundItem {
   id: string;
+  finder_id: string;
   title: string;
   description: string;
   category: string;
@@ -61,6 +63,7 @@ export interface PublicFoundItem {
 
 export interface PublicResource {
   id: string;
+  owner_id: string;
   title: string;
   description: string;
   category: string;
@@ -123,6 +126,90 @@ export async function fetchBoardStats() {
   };
 }
 
+
+/** Turns auth claims into a friendly display name (Google name, else email prefix). */
+export function displayNameFromClaims(claims: Record<string, unknown>): string {
+  const meta = (claims["user_metadata"] ?? {}) as Record<string, unknown>;
+  const candidate =
+    (typeof meta["full_name"] === "string" && meta["full_name"]) ||
+    (typeof meta["name"] === "string" && meta["name"]) ||
+    "";
+  if (candidate.trim()) return candidate.trim().slice(0, 80);
+  const email = typeof claims["email"] === "string" ? claims["email"] : "";
+  const local = email.split("@")[0] ?? "";
+  if (!local) return "Student";
+  return local
+    .replace(/[._-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .slice(0, 80);
+}
+
+/** Dashboard counters. Runs on the caller's own client so RLS scopes every count. */
+export async function fetchDashboardSummary(supabase: AuthedClient, userId: string) {
+  const headCount = (promise: PromiseLike<{ count: number | null }>) =>
+    Promise.resolve(promise).then((result) => result.count ?? 0);
+
+  const [
+    lostCount,
+    foundCount,
+    resourceCount,
+    pendingClaims,
+    pendingBorrows,
+    unreadAlerts,
+    reunited,
+    myClaimsPending,
+  ] = await Promise.all([
+    headCount(supabase.from("lost_items").select("id", { count: "exact", head: true }).eq("reporter_id", userId)),
+    headCount(supabase.from("found_items").select("id", { count: "exact", head: true }).eq("finder_id", userId)),
+    headCount(supabase.from("resource_listings").select("id", { count: "exact", head: true }).eq("owner_id", userId)),
+    headCount(
+      supabase
+        .from("item_claims")
+        .select("id, found_items!inner(finder_id)", { count: "exact", head: true })
+        .eq("status", "pending")
+        .eq("found_items.finder_id", userId),
+    ),
+    headCount(
+      supabase
+        .from("borrow_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending")
+        .eq("lender_id", userId),
+    ),
+    headCount(
+      supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("read", false),
+    ),
+    headCount(
+      supabase
+        .from("found_items")
+        .select("id", { count: "exact", head: true })
+        .eq("finder_id", userId)
+        .eq("status", "claimed"),
+    ),
+    headCount(
+      supabase
+        .from("item_claims")
+        .select("id", { count: "exact", head: true })
+        .eq("claimant_id", userId)
+        .eq("status", "pending"),
+    ),
+  ]);
+
+  return {
+    lostCount,
+    foundCount,
+    resourceCount,
+    pendingClaims,
+    pendingBorrows,
+    unreadAlerts,
+    reunited,
+    myClaimsPending,
+  };
+}
 
 /** Every write path calls this so the reporter always has a profile row. */
 export async function ensureProfile(supabase: AuthedClient, userId: string, fallbackName?: string) {

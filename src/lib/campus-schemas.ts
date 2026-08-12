@@ -84,6 +84,8 @@ export const matchRequestSchema = z.object({
   itemType: z.enum(["lost", "found"]),
 });
 
+export const notificationIdSchema = z.object({ id: z.string().uuid() });
+
 export const contactRequestSchema = z.object({
   itemType: z.enum(["lost", "found", "resource"]),
   itemId: z.string().uuid(),
