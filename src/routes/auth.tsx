@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import logoMark from "@/assets/campusfind-logo.png";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -110,6 +111,13 @@ function AuthPage() {
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-4 py-16">
       <div>
+        <img
+          src={logoMark}
+          alt="CampusFind logo"
+          width={1024}
+          height={1024}
+          className="mb-4 size-14"
+        />
         <h1 className="text-4xl">Sign in to CampusFind</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Your contact details are stored separately from public listings and only revealed when
