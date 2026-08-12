@@ -228,15 +228,6 @@ export function PostMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        {user ? (
-          <Link
-            to="/profile"
-            onClick={() => setOpen(false)}
-            className="block py-2 text-sm font-medium text-muted-foreground"
-          >
-            Profile
-          </Link>
-        ) : null}
         {postLinks.map((link) => (
           <DropdownMenuItem key={link.to} asChild>
             <Link to={signedIn ? link.to : "/auth"} className="flex items-center gap-2">
