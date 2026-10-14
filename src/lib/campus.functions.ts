@@ -5,10 +5,13 @@ import {
   boardQuerySchema,
   borrowDecisionSchema,
   borrowSchema,
+  claimIdSchema,
+  claimMessageSchema,
   claimSchema,
   contactRequestSchema,
   decisionSchema,
   foundItemSchema,
+  listingSchema,
   lostItemSchema,
   profileSchema,
   matchRequestSchema,
@@ -16,6 +19,7 @@ import {
   resourceSchema,
 } from "./campus-schemas";
 import {
+  type AuthedClient,
   displayNameFromClaims,
   ensureProfile,
   fetchDashboardSummary,
