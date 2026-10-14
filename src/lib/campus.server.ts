@@ -1,22 +1,38 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getRequest } from "@tanstack/react-start/server";
 
 import type { Database } from "@/integrations/supabase/types";
 import { rankMatches, type MatchableItem, type MatchResult } from "./matching.server";
 
 export type AuthedClient = SupabaseClient<Database>;
 
-/** Read-only client used for the public board. Never sees user sessions. */
+/**
+ * Board client. Forwards the caller's own sign-in token when present so RLS
+ * decides what they see: guests only get tutorial samples, signed-in
+ * students get the real board.
+ */
 export function createPublicClient(): SupabaseClient<Database> {
   const url = process.env["SUPABASE_URL"];
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"];
   if (!url || !key) throw new Error("Backend is not configured yet.");
+
+  let userToken: string | null = null;
+  try {
+    const auth = getRequest()?.headers.get("authorization") ?? "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (token.split(".").length === 3) userToken = token;
+  } catch {
+    userToken = null;
+  }
 
   return createClient<Database>(url, key, {
     auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
     global: {
       fetch: (input, init) => {
         const headers = new Headers(init?.headers);
-        if (key.startsWith("sb_") && headers.get("Authorization") === `Bearer ${key}`) {
+        if (userToken) {
+          headers.set("Authorization", `Bearer ${userToken}`);
+        } else if (key.startsWith("sb_") && headers.get("Authorization") === `Bearer ${key}`) {
           headers.delete("Authorization");
         }
         headers.set("apikey", key);
