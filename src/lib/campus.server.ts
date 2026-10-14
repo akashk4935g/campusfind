@@ -276,6 +276,7 @@ export async function suggestMatches(
       .from("found_items")
       .select(FOUND_COLUMNS)
       .eq("is_sample", false)
+      .eq("is_listed", true)
       .neq("status", "claimed")
       .limit(200);
     return rankMatches(toMatchable(target as PublicLostItem), (candidates ?? []).map((row) => toMatchable(row as PublicFoundItem)));
