@@ -149,8 +149,24 @@ function LostFoundPage() {
                   sample={item.is_sample}
                   footer={
                     <div className="space-y-2">
-                      {user && item.reporter_id === user.id ? <OwnPostTag /> : null}
-                      <MatchButton itemId={item.id} itemType="lost" signedIn={Boolean(user)} />
+                      {user && item.reporter_id === user.id ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <OwnPostTag />
+                          <UnlistButton itemType="lost" itemId={item.id} />
+                        </div>
+                      ) : null}
+                      {user && item.reporter_id === user.id ? (
+                        <MatchButton
+                          itemId={item.id}
+                          itemType="lost"
+                          signedIn
+                          onClaim={(candidate) =>
+                            setClaimTarget({ id: candidate.id, title: candidate.title, lostItemId: item.id })
+                          }
+                        />
+                      ) : (
+                        <MatchButton itemId={item.id} itemType="lost" signedIn={Boolean(user)} />
+                      )}
                     </div>
                   }
                 />
@@ -180,7 +196,10 @@ function LostFoundPage() {
                     user ? (
                       item.finder_id === user.id ? (
                         <div className="space-y-2">
-                          <OwnPostTag />
+                          <div className="flex flex-wrap items-center gap-2">
+                            <OwnPostTag />
+                            <UnlistButton itemType="found" itemId={item.id} />
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             You handed this in.{" "}
                             <Link to="/activity" className="underline">
@@ -193,16 +212,15 @@ function LostFoundPage() {
                         <div className="space-y-2">
                           <Button
                             size="sm"
-                            disabled={item.status === "claimed" || item.is_sample}
+                            disabled={item.status !== "open" || item.is_sample}
                             onClick={() => setClaimTarget({ id: item.id, title: item.title })}
                           >
                             {item.is_sample
                               ? "Demo item"
-                              : item.status === "claimed"
-                                ? "Already handed over"
+                              : item.status !== "open"
+                                ? "Already matched"
                                 : "This is mine"}
                           </Button>
-                          {item.is_sample ? null : <ContactReveal itemType="found" itemId={item.id} />}
                         </div>
                       )
                     ) : (
