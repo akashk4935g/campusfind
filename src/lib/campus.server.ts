@@ -292,6 +292,7 @@ export async function suggestMatches(
     .from("lost_items")
     .select(LOST_COLUMNS)
     .eq("is_sample", false)
+    .eq("is_listed", true)
     .neq("status", "resolved")
     .limit(200);
 
