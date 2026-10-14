@@ -526,7 +526,7 @@ export const getMyActivity = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const supabase = context.supabase;
     const userId = context.userId;
-    const claimCols = "id, status, message, where_when, identifying_details, meeting_note, created_at, claimant_id";
+    const claimCols = "id, status, message, where_when, identifying_details, meeting_note, proof_photo, created_at, claimant_id";
 
     const [lost, found, resources, claimsMade, claimsReceived, borrowsMade, borrowsReceived] =
       await Promise.all([

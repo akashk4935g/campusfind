@@ -262,7 +262,7 @@ function ClaimCard({
   const send = useServerFn(addClaimMessage);
   const [reply, setReply] = useState("");
   const [meeting, setMeeting] = useState("");
-  const proof = useSignedPhoto(role === "finder" ? (claim as Claim & { proof_photo?: string | null }).proof_photo : null);
+  const proof = useSignedPhoto(role === "finder" ? claim.proof_photo : null);
   const item = claim.found_items as { id: string; title: string } | null;
 
   const refresh = () => queryClient.invalidateQueries();
