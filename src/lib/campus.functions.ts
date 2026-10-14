@@ -228,20 +228,39 @@ export const claimItem = createServerFn({ method: "POST" })
 
     const { data: item } = await context.supabase
       .from("found_items")
-      .select("id, title, finder_id, status")
+      .select("id, title, finder_id, status, is_listed, is_sample")
       .eq("id", data.foundItemId)
       .maybeSingle();
-    if (!item) throw new Error("That found item no longer exists.");
+    if (!item || !item.is_listed) throw new Error("That found item is no longer listed.");
+    if (item.is_sample) throw new Error("Demo items can't be claimed.");
     if (item.finder_id === context.userId) throw new Error("You reported this item yourself.");
     if (item.status === "claimed") throw new Error("This item has already been handed over.");
 
-    const { error } = await context.supabase.from("item_claims").insert({
-      found_item_id: data.foundItemId,
-      claimant_id: context.userId,
-      lost_item_id: data.lostItemId ?? null,
-      message: data.message,
-    });
-    if (error) throw new Error(error.message);
+    const { data: existing } = await context.supabase
+      .from("item_claims")
+      .select("id")
+      .eq("found_item_id", data.foundItemId)
+      .eq("claimant_id", context.userId)
+      .eq("status", "pending")
+      .maybeSingle();
+    if (existing) throw new Error("You already have a pending claim on this item. Add more info from My activity.");
+
+    const { data: claim, error } = await context.supabase
+      .from("item_claims")
+      .insert({
+        found_item_id: data.foundItemId,
+        claimant_id: context.userId,
+        lost_item_id: data.lostItemId ?? null,
+        message: data.message,
+        where_when: data.whereWhen,
+        identifying_details: data.identifyingDetails,
+        proof_photo: data.proofPhoto ?? null,
+      })
+      .select("id")
+      .single();
+    if (error || !claim) throw new Error(error?.message ?? "Could not send claim.");
+
+    await upsertItemContact(context.supabase, context.userId, "claim", claim.id, data.contactInfo);
 
     await notify(
       item.finder_id,
@@ -252,51 +271,169 @@ export const claimItem = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Loads a claim and confirms the caller is its finder (or an admin). */
+async function loadClaimForFinder(supabase: AuthedClient, userId: string, claimId: string) {
+  const { data: claim } = await supabase
+    .from("item_claims")
+    .select("id, status, found_item_id, claimant_id, lost_item_id, found_items(finder_id, title)")
+    .eq("id", claimId)
+    .maybeSingle();
+  if (!claim) throw new Error("Claim not found.");
+  const found = claim.found_items as { finder_id: string; title: string } | null;
+  const admin = await isAdmin(supabase, userId);
+  if (found?.finder_id !== userId && !admin) throw new Error("Only the finder can decide this claim.");
+  return { claim, title: found?.title ?? "the item" };
+}
+
 export const decideClaim = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => decisionSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { data: claim } = await context.supabase
-      .from("item_claims")
-      .select("id, found_item_id, claimant_id, lost_item_id, found_items(finder_id, title)")
-      .eq("id", data.id)
-      .maybeSingle();
-    if (!claim) throw new Error("Claim not found.");
+    const { claim, title } = await loadClaimForFinder(context.supabase, context.userId, data.id);
+    if (claim.status !== "pending") throw new Error("This claim was already decided.");
 
-    const finderId = (claim.found_items as { finder_id: string } | null)?.finder_id;
-    const admin = await isAdmin(context.supabase, context.userId);
-    if (finderId !== context.userId && !admin) throw new Error("You cannot decide this claim.");
-
-    const { error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("item_claims")
-      .update({ status: data.decision, decided_by: context.userId, decided_at: new Date().toISOString() })
+      .update({
+        status: data.decision,
+        decided_by: context.userId,
+        decided_at: new Date().toISOString(),
+        meeting_note: data.decision === "approved" ? data.meetingNote || null : null,
+      })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
 
     if (data.decision === "approved") {
-      await context.supabase
-        .from("found_items")
-        .update({ status: "claimed", claimed_by: claim.claimant_id, matched_lost_item_id: claim.lost_item_id })
-        .eq("id", claim.found_item_id);
-      if (claim.lost_item_id) {
-        await context.supabase
-          .from("lost_items")
-          .update({ status: "resolved", matched_found_item_id: claim.found_item_id })
-          .eq("id", claim.lost_item_id);
+      // Any other pending claims on the same item are closed out.
+      const { data: others } = await supabaseAdmin
+        .from("item_claims")
+        .update({ status: "rejected", decided_by: context.userId, decided_at: new Date().toISOString() })
+        .eq("found_item_id", claim.found_item_id)
+        .eq("status", "pending")
+        .select("claimant_id");
+      for (const other of others ?? []) {
+        await notify(other.claimant_id, "claim", "Claim declined", `"${title}" was matched with someone else.`);
       }
+      await supabaseAdmin
+        .from("found_items")
+        .update({ status: "matched", claimed_by: claim.claimant_id, matched_lost_item_id: claim.lost_item_id })
+        .eq("id", claim.found_item_id);
     }
 
-    const title = (claim.found_items as { title: string } | null)?.title ?? "your claim";
     await notify(
       claim.claimant_id,
       "claim",
       data.decision === "approved" ? "Claim approved" : "Claim declined",
       data.decision === "approved"
-        ? `Your claim on "${title}" was approved. Contact details are now unlocked.`
+        ? `Your claim on "${title}" was approved. Open My activity to see the handover details and the finder's contact.`
         : `Your claim on "${title}" was declined.`,
     );
     return { ok: true };
   });
+
+export const markHandedOver = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => claimIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { claim, title } = await loadClaimForFinder(context.supabase, context.userId, data.id);
+    if (claim.status !== "approved") throw new Error("Only approved claims can be handed over.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("item_claims").update({ status: "handed_over" }).eq("id", data.id);
+    await supabaseAdmin.from("found_items").update({ status: "claimed" }).eq("id", claim.found_item_id);
+    if (claim.lost_item_id) {
+      await supabaseAdmin
+        .from("lost_items")
+        .update({ status: "resolved", matched_found_item_id: claim.found_item_id })
+        .eq("id", claim.lost_item_id)
+        .eq("reporter_id", claim.claimant_id);
+    }
+    await notify(claim.claimant_id, "claim", "Item handed over", `"${title}" is marked as returned to you. Contact details are now hidden.`);
+    return { ok: true };
+  });
+
+export const addClaimMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => claimMessageSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: claim } = await context.supabase
+      .from("item_claims")
+      .select("id, status, claimant_id, found_items(finder_id, title)")
+      .eq("id", data.claimId)
+      .maybeSingle();
+    if (!claim) throw new Error("Claim not found.");
+    if (claim.status !== "pending") throw new Error("This claim is already decided.");
+    const found = claim.found_items as { finder_id: string; title: string } | null;
+    const isClaimant = claim.claimant_id === context.userId;
+    if (!isClaimant && found?.finder_id !== context.userId) throw new Error("You are not part of this claim.");
+
+    const { error } = await context.supabase
+      .from("claim_messages")
+      .insert({ claim_id: data.claimId, author_id: context.userId, body: data.body });
+    if (error) throw new Error(error.message);
+
+    const recipient = isClaimant ? found?.finder_id : claim.claimant_id;
+    if (recipient) {
+      await notify(
+        recipient,
+        "claim",
+        isClaimant ? "More info on a claim" : "The finder has a question",
+        `New message about "${found?.title ?? "an item"}". Reply from My activity.`,
+      );
+    }
+    return { ok: true };
+  });
+
+/* --------------------------------- listings -------------------------------- */
+
+export const setListing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => listingSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const table =
+      data.itemType === "lost" ? "lost_items" : data.itemType === "found" ? "found_items" : "resource_listings";
+    const ownerColumn =
+      data.itemType === "lost" ? "reporter_id" : data.itemType === "found" ? "finder_id" : "owner_id";
+
+    const { data: row, error } = await context.supabase
+      .from(table)
+      .update({ is_listed: data.listed })
+      .eq("id", data.itemId)
+      .eq(ownerColumn, context.userId)
+      .select("id, title")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error("You can only unlist your own posts.");
+
+    if (!data.listed) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if (data.itemType === "found") {
+        const { data: cancelled } = await supabaseAdmin
+          .from("item_claims")
+          .update({ status: "cancelled" })
+          .eq("found_item_id", data.itemId)
+          .eq("status", "pending")
+          .select("claimant_id");
+        for (const c of cancelled ?? []) {
+          await notify(c.claimant_id, "claim", "Claim cancelled", `"${row.title}" was unlisted by the finder.`);
+        }
+      }
+      if (data.itemType === "resource") {
+        const { data: cancelled } = await supabaseAdmin
+          .from("borrow_requests")
+          .update({ status: "cancelled" })
+          .eq("resource_id", data.itemId)
+          .eq("status", "pending")
+          .select("requester_id");
+        for (const r of cancelled ?? []) {
+          await notify(r.requester_id, "borrow", "Request cancelled", `"${row.title}" was unlisted by the lender.`);
+        }
+      }
+    }
+    return { ok: true };
+  });
+
 
 /* -------------------------------- borrowing ------------------------------- */
 
