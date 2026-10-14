@@ -400,7 +400,7 @@ export const setListing = createServerFn({ method: "POST" })
       .from(table)
       .update({ is_listed: data.listed })
       .eq("id", data.itemId)
-      .eq(ownerColumn, context.userId)
+      .eq(ownerColumn as "id", context.userId)
       .select("id, title")
       .maybeSingle();
     if (error) throw new Error(error.message);
