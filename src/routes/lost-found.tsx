@@ -316,7 +316,7 @@ function MatchButton({
                 </p>
                 <p className="text-muted-foreground">{match.reasons.join(" · ")}</p>
                 {onClaim ? (
-                  <Button size="sm" className="h-7" onClick={() => onClaim(match.candidate)}>
+                  <Button size="sm" className="h-7" onClick={() => onClaim({ id: match.candidate.id, title: match.candidate.title ?? "Found item" })}>
                     This is mine
                   </Button>
                 ) : null}
