@@ -254,7 +254,7 @@ function ClaimCard({
   role: "finder" | "claimant";
   userId: string;
   messages: Message[];
-  handover?: { name: string; contact: string | null };
+  handover?: { name: string; contact: string | null } | undefined;
 }) {
   const queryClient = useQueryClient();
   const decide = useServerFn(decideClaim);
