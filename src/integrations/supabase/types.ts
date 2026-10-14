@@ -58,6 +58,38 @@ export type Database = {
           },
         ]
       }
+      claim_messages: {
+        Row: {
+          author_id: string
+          body: string
+          claim_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          claim_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          claim_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_messages_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "item_claims"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       found_items: {
         Row: {
           category: Database["public"]["Enums"]["item_category"]
@@ -68,6 +100,7 @@ export type Database = {
           finder_id: string
           id: string
           image_url: string | null
+          is_listed: boolean
           is_sample: boolean
           location_found: string
           matched_lost_item_id: string | null
@@ -84,6 +117,7 @@ export type Database = {
           finder_id: string
           id?: string
           image_url?: string | null
+          is_listed?: boolean
           is_sample?: boolean
           location_found: string
           matched_lost_item_id?: string | null
@@ -100,6 +134,7 @@ export type Database = {
           finder_id?: string
           id?: string
           image_url?: string | null
+          is_listed?: boolean
           is_sample?: boolean
           location_found?: string
           matched_lost_item_id?: string | null
@@ -125,9 +160,13 @@ export type Database = {
           decided_by: string | null
           found_item_id: string
           id: string
+          identifying_details: string
           lost_item_id: string | null
+          meeting_note: string | null
           message: string
+          proof_photo: string | null
           status: Database["public"]["Enums"]["claim_status"]
+          where_when: string
         }
         Insert: {
           claimant_id: string
@@ -136,9 +175,13 @@ export type Database = {
           decided_by?: string | null
           found_item_id: string
           id?: string
+          identifying_details?: string
           lost_item_id?: string | null
+          meeting_note?: string | null
           message?: string
+          proof_photo?: string | null
           status?: Database["public"]["Enums"]["claim_status"]
+          where_when?: string
         }
         Update: {
           claimant_id?: string
@@ -147,9 +190,13 @@ export type Database = {
           decided_by?: string | null
           found_item_id?: string
           id?: string
+          identifying_details?: string
           lost_item_id?: string | null
+          meeting_note?: string | null
           message?: string
+          proof_photo?: string | null
           status?: Database["public"]["Enums"]["claim_status"]
+          where_when?: string
         }
         Relationships: [
           {
@@ -203,6 +250,7 @@ export type Database = {
           description: string
           id: string
           image_url: string | null
+          is_listed: boolean
           is_sample: boolean
           location_lost: string
           matched_found_item_id: string | null
@@ -218,6 +266,7 @@ export type Database = {
           description?: string
           id?: string
           image_url?: string | null
+          is_listed?: boolean
           is_sample?: boolean
           location_lost: string
           matched_found_item_id?: string | null
@@ -233,6 +282,7 @@ export type Database = {
           description?: string
           id?: string
           image_url?: string | null
+          is_listed?: boolean
           is_sample?: boolean
           location_lost?: string
           matched_found_item_id?: string | null
@@ -319,6 +369,7 @@ export type Database = {
           description: string
           id: string
           image_url: string | null
+          is_listed: boolean
           is_sample: boolean
           item_condition: string
           owner_id: string
@@ -332,6 +383,7 @@ export type Database = {
           description?: string
           id?: string
           image_url?: string | null
+          is_listed?: boolean
           is_sample?: boolean
           item_condition?: string
           owner_id: string
@@ -345,6 +397,7 @@ export type Database = {
           description?: string
           id?: string
           image_url?: string | null
+          is_listed?: boolean
           is_sample?: boolean
           item_condition?: string
           owner_id?: string
@@ -391,8 +444,18 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "student"
-      borrow_status: "pending" | "approved" | "rejected" | "returned"
-      claim_status: "pending" | "approved" | "rejected"
+      borrow_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "returned"
+        | "cancelled"
+      claim_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "handed_over"
+        | "cancelled"
       found_status: "open" | "matched" | "claimed"
       item_category:
         | "ID Card"
@@ -532,8 +595,20 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "student"],
-      borrow_status: ["pending", "approved", "rejected", "returned"],
-      claim_status: ["pending", "approved", "rejected"],
+      borrow_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "returned",
+        "cancelled",
+      ],
+      claim_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "handed_over",
+        "cancelled",
+      ],
       found_status: ["open", "matched", "claimed"],
       item_category: [
         "ID Card",

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { BentoGrid, bentoSize } from "@/components/bento-grid";
-import { ContactReveal } from "@/components/contact-reveal";
+import { UnlistButton } from "@/components/unlist-button";
 import { ItemCard } from "@/components/item-card";
 import { Button } from "@/components/ui/button";
 import {
@@ -110,9 +110,12 @@ function ResourcesPage() {
                 user ? (
                   item.owner_id === user.id ? (
                     <div className="space-y-2">
-                      <span className="tag border-transparent bg-secondary text-secondary-foreground">
-                        Your listing
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="tag border-transparent bg-secondary text-secondary-foreground">
+                          Your listing
+                        </span>
+                        <UnlistButton itemType="resource" itemId={item.id} />
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         <Link to="/activity" className="underline">
                           Review requests
@@ -133,9 +136,6 @@ function ResourcesPage() {
                             ? "Request to borrow"
                             : "Currently lent out"}
                       </Button>
-                      {item.is_sample ? null : (
-                        <ContactReveal itemType="resource" itemId={item.id} />
-                      )}
                     </div>
                   )
                 ) : (

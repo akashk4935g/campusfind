@@ -54,12 +54,30 @@ export const resourceSchema = z.object({
 export const claimSchema = z.object({
   foundItemId: z.string().uuid(),
   lostItemId: z.string().uuid().optional().nullable(),
-  message: longText,
+  whereWhen: z.string().trim().min(2).max(300),
+  identifyingDetails: z.string().trim().min(5).max(1000),
+  message: longText.default(""),
+  contactInfo: z.string().trim().min(4).max(160),
+  proofPhoto: z.string().trim().max(300).optional().nullable(),
 });
 
 export const decisionSchema = z.object({
   id: z.string().uuid(),
   decision: z.enum(["approved", "rejected"]),
+  meetingNote: z.string().trim().max(200).optional().nullable(),
+});
+
+export const claimIdSchema = z.object({ id: z.string().uuid() });
+
+export const claimMessageSchema = z.object({
+  claimId: z.string().uuid(),
+  body: z.string().trim().min(1).max(1000),
+});
+
+export const listingSchema = z.object({
+  itemType: z.enum(["lost", "found", "resource"]),
+  itemId: z.string().uuid(),
+  listed: z.boolean(),
 });
 
 export const borrowSchema = z.object({

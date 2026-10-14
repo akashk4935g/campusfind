@@ -92,7 +92,7 @@ export interface PublicResource {
 
 export async function fetchLostItems(limit = 60, includeSamples = false): Promise<PublicLostItem[]> {
   const supabase = createPublicClient();
-  let query = supabase.from("lost_items").select(LOST_COLUMNS);
+  let query = supabase.from("lost_items").select(LOST_COLUMNS).eq("is_listed", true);
   if (!includeSamples) query = query.eq("is_sample", false);
   const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
@@ -101,7 +101,7 @@ export async function fetchLostItems(limit = 60, includeSamples = false): Promis
 
 export async function fetchFoundItems(limit = 60, includeSamples = false): Promise<PublicFoundItem[]> {
   const supabase = createPublicClient();
-  let query = supabase.from("found_items").select(FOUND_COLUMNS);
+  let query = supabase.from("found_items").select(FOUND_COLUMNS).eq("is_listed", true);
   if (!includeSamples) query = query.eq("is_sample", false);
   const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
@@ -110,7 +110,7 @@ export async function fetchFoundItems(limit = 60, includeSamples = false): Promi
 
 export async function fetchResources(limit = 60, includeSamples = false): Promise<PublicResource[]> {
   const supabase = createPublicClient();
-  let query = supabase.from("resource_listings").select(RESOURCE_COLUMNS);
+  let query = supabase.from("resource_listings").select(RESOURCE_COLUMNS).eq("is_listed", true);
   if (!includeSamples) query = query.eq("is_sample", false);
   const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
@@ -240,7 +240,7 @@ export async function ensureProfile(supabase: AuthedClient, userId: string, fall
 export async function upsertItemContact(
   supabase: AuthedClient,
   userId: string,
-  itemType: "lost" | "found" | "resource",
+  itemType: "lost" | "found" | "resource" | "claim",
   itemId: string,
   contactInfo: string,
 ) {
@@ -276,6 +276,7 @@ export async function suggestMatches(
       .from("found_items")
       .select(FOUND_COLUMNS)
       .eq("is_sample", false)
+      .eq("is_listed", true)
       .neq("status", "claimed")
       .limit(200);
     return rankMatches(toMatchable(target as PublicLostItem), (candidates ?? []).map((row) => toMatchable(row as PublicFoundItem)));
@@ -291,6 +292,7 @@ export async function suggestMatches(
     .from("lost_items")
     .select(LOST_COLUMNS)
     .eq("is_sample", false)
+    .eq("is_listed", true)
     .neq("status", "resolved")
     .limit(200);
 
@@ -346,7 +348,7 @@ export async function resolveContactAccess(
       .select("id")
       .eq("resource_id", itemId)
       .eq("requester_id", userId)
-      .in("status", ["approved", "returned"])
+      .eq("status", "approved")
       .maybeSingle();
     return Boolean(request);
   }
@@ -355,7 +357,7 @@ export async function resolveContactAccess(
 }
 
 export async function readContact(
-  itemType: "lost" | "found" | "resource",
+  itemType: "lost" | "found" | "resource" | "claim",
   itemId: string,
 ): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
