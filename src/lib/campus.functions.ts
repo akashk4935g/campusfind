@@ -476,55 +476,105 @@ export const decideBorrow = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: request } = await context.supabase
       .from("borrow_requests")
-      .select("id, resource_id, requester_id, lender_id, resource_listings(title)")
+      .select("id, status, resource_id, requester_id, lender_id, resource_listings(title)")
       .eq("id", data.id)
       .maybeSingle();
     if (!request) throw new Error("Request not found.");
 
     const admin = await isAdmin(context.supabase, context.userId);
-    if (request.lender_id !== context.userId && !admin) throw new Error("You cannot decide this request.");
+    if (request.lender_id !== context.userId && !admin) throw new Error("Only the lender can decide this request.");
+    if (data.decision === "returned" ? request.status !== "approved" : request.status !== "pending") {
+      throw new Error("This request can't be changed that way.");
+    }
 
-    const { error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("borrow_requests")
       .update({ status: data.decision })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
 
-    await context.supabase
-      .from("resource_listings")
-      .update({ availability: data.decision === "approved" ? "lent" : "available" })
-      .eq("id", request.resource_id);
+    if (data.decision !== "rejected") {
+      await supabaseAdmin
+        .from("resource_listings")
+        .update({ availability: data.decision === "approved" ? "lent" : "available" })
+        .eq("id", request.resource_id);
+    }
 
     const title = (request.resource_listings as { title: string } | null)?.title ?? "the item";
     await notify(
       request.requester_id,
       "borrow",
       `Borrow request ${data.decision}`,
-      `Your request for "${title}" was ${data.decision}.`,
+      data.decision === "approved"
+        ? `Your request for "${title}" was approved. Open My activity to see the lender's contact.`
+        : `Your request for "${title}" was ${data.decision}.`,
     );
     return { ok: true };
   });
 
 /* --------------------------------- activity ------------------------------- */
 
+type Party = { name: string; contact: string | null };
+
 export const getMyActivity = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const supabase = context.supabase;
     const userId = context.userId;
+    const claimCols = "id, status, message, where_when, identifying_details, meeting_note, created_at, claimant_id";
 
     const [lost, found, resources, claimsMade, claimsReceived, borrowsMade, borrowsReceived] =
       await Promise.all([
-        supabase.from("lost_items").select("id, title, category, status, date_lost, created_at").eq("reporter_id", userId).order("created_at", { ascending: false }),
-        supabase.from("found_items").select("id, title, category, status, date_found, created_at").eq("finder_id", userId).order("created_at", { ascending: false }),
-        supabase.from("resource_listings").select("id, title, category, availability, created_at").eq("owner_id", userId).order("created_at", { ascending: false }),
-        supabase.from("item_claims").select("id, status, message, created_at, found_items(id, title)").eq("claimant_id", userId).order("created_at", { ascending: false }),
-        supabase.from("item_claims").select("id, status, message, created_at, claimant_id, found_items!inner(id, title, finder_id)").eq("found_items.finder_id", userId).order("created_at", { ascending: false }),
-        supabase.from("borrow_requests").select("id, status, message, requested_duration, created_at, resource_listings(id, title)").eq("requester_id", userId).order("created_at", { ascending: false }),
-        supabase.from("borrow_requests").select("id, status, message, requested_duration, created_at, resource_listings(id, title)").eq("lender_id", userId).order("created_at", { ascending: false }),
+        supabase.from("lost_items").select("id, title, category, status, date_lost, created_at, is_listed").eq("reporter_id", userId).order("created_at", { ascending: false }),
+        supabase.from("found_items").select("id, title, category, status, date_found, created_at, is_listed").eq("finder_id", userId).order("created_at", { ascending: false }),
+        supabase.from("resource_listings").select("id, title, category, availability, created_at, is_listed").eq("owner_id", userId).order("created_at", { ascending: false }),
+        supabase.from("item_claims").select(`${claimCols}, found_items(id, title, finder_id)`).eq("claimant_id", userId).order("created_at", { ascending: false }),
+        supabase.from("item_claims").select(`${claimCols}, found_items!inner(id, title, finder_id)`).eq("found_items.finder_id", userId).order("created_at", { ascending: false }),
+        supabase.from("borrow_requests").select("id, status, message, requested_duration, created_at, lender_id, resource_listings(id, title)").eq("requester_id", userId).order("created_at", { ascending: false }),
+        supabase.from("borrow_requests").select("id, status, message, requested_duration, created_at, requester_id, resource_listings(id, title)").eq("lender_id", userId).order("created_at", { ascending: false }),
       ]);
 
+    const allClaims = [...(claimsMade.data ?? []), ...(claimsReceived.data ?? [])];
+    const claimIds = allClaims.map((c) => c.id);
+    const { data: messages } = claimIds.length
+      ? await supabase.from("claim_messages").select("id, claim_id, author_id, body, created_at").in("claim_id", claimIds).order("created_at")
+      : { data: [] as { id: string; claim_id: string; author_id: string; body: string; created_at: string }[] };
+
+    // Handover details: only for approved claims/loans the caller is part of
+    // (every row above was already scoped to the caller by RLS).
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const nameOf = async (id: string) => {
+      const { data } = await supabaseAdmin.from("profiles").select("full_name, contact_info").eq("id", id).maybeSingle();
+      return data;
+    };
+    const handovers: Record<string, Party> = {};
+    for (const c of claimsMade.data ?? []) {
+      if (c.status !== "approved") continue;
+      const f = c.found_items as { id: string; finder_id: string } | null;
+      if (!f) continue;
+      const p = await nameOf(f.finder_id);
+      handovers[c.id] = { name: p?.full_name ?? "Finder", contact: (await readContact("found", f.id)) ?? p?.contact_info ?? null };
+    }
+    for (const c of claimsReceived.data ?? []) {
+      if (c.status !== "approved") continue;
+      const p = await nameOf(c.claimant_id);
+      handovers[c.id] = { name: p?.full_name ?? "Owner", contact: (await readContact("claim", c.id)) ?? p?.contact_info ?? null };
+    }
+    for (const b of borrowsMade.data ?? []) {
+      if (b.status !== "approved") continue;
+      const l = b.resource_listings as { id: string } | null;
+      const p = await nameOf(b.lender_id);
+      handovers[b.id] = { name: p?.full_name ?? "Lender", contact: (l ? await readContact("resource", l.id) : null) ?? p?.contact_info ?? null };
+    }
+    for (const b of borrowsReceived.data ?? []) {
+      if (b.status !== "approved") continue;
+      const p = await nameOf(b.requester_id);
+      handovers[b.id] = { name: p?.full_name ?? "Borrower", contact: p?.contact_info ?? null };
+    }
+
     return {
+      userId,
       lost: lost.data ?? [],
       found: found.data ?? [],
       resources: resources.data ?? [],
@@ -532,8 +582,12 @@ export const getMyActivity = createServerFn({ method: "GET" })
       claimsReceived: claimsReceived.data ?? [],
       borrowsMade: borrowsMade.data ?? [],
       borrowsReceived: borrowsReceived.data ?? [],
+      messages: messages ?? [],
+      handovers,
     };
   });
+
+
 
 export const getNotifications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
