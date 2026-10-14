@@ -2,10 +2,12 @@ import { queryOptions, useMutation, useSuspenseQuery } from "@tanstack/react-que
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Search, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { ContactReveal } from "@/components/contact-reveal";
+import { UnlistButton } from "@/components/unlist-button";
+import { uploadItemPhoto } from "@/hooks/useSignedPhoto";
+import { supabase } from "@/integrations/supabase/client";
 import { TutorialStrip } from "@/components/tutorial-strip";
 import { ItemCard } from "@/components/item-card";
 import { Button } from "@/components/ui/button";
@@ -73,7 +75,7 @@ function LostFoundPage() {
   const { data } = useSuspenseQuery(boardQuery(!signedIn));
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
-  const [claimTarget, setClaimTarget] = useState<{ id: string; title: string } | null>(null);
+  const [claimTarget, setClaimTarget] = useState<ClaimTarget | null>(null);
 
   const filteredLost = useMemo(
     () => filterItems(data.lost, query, category, (item) => item.location_lost),
@@ -282,10 +284,12 @@ function MatchButton({
   itemId,
   itemType,
   signedIn,
+  onClaim,
 }: {
   itemId: string;
   itemType: "lost" | "found";
   signedIn: boolean;
+  onClaim?: (candidate: { id: string; title: string }) => void;
 }) {
   const fetchMatches = useServerFn(getMatches);
   const mutation = useMutation({
@@ -306,11 +310,16 @@ function MatchButton({
         ) : (
           <ul className="space-y-2">
             {mutation.data.matches.map((match) => (
-              <li key={match.candidate.id} className="rounded-sm bg-secondary p-2 text-xs">
+              <li key={match.candidate.id} className="space-y-1 rounded-sm bg-secondary p-2 text-xs">
                 <p className="font-semibold">
                   {match.candidate.title} · {match.confidenceScore}%
                 </p>
                 <p className="text-muted-foreground">{match.reasons.join(" · ")}</p>
+                {onClaim ? (
+                  <Button size="sm" className="h-7" onClick={() => onClaim(match.candidate)}>
+                    This is mine
+                  </Button>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -320,52 +329,119 @@ function MatchButton({
   );
 }
 
-function ClaimDialog({
-  target,
-  onClose,
-}: {
-  target: { id: string; title: string } | null;
-  onClose: () => void;
-}) {
+type ClaimTarget = { id: string; title: string; lostItemId?: string };
+
+function ClaimDialog({ target, onClose }: { target: ClaimTarget | null; onClose: () => void }) {
+  const { user } = useAuth();
   const submitClaim = useServerFn(claimItem);
+  const [whereWhen, setWhereWhen] = useState("");
+  const [details, setDetails] = useState("");
   const [message, setMessage] = useState("");
+  const [contact, setContact] = useState("");
+  const [lostItemId, setLostItemId] = useState<string>("none");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [myLost, setMyLost] = useState<{ id: string; title: string }[]>([]);
+
+  useEffect(() => {
+    if (!target || !user) return;
+    setLostItemId(target.lostItemId ?? "none");
+    supabase
+      .from("lost_items")
+      .select("id, title")
+      .eq("reporter_id", user.id)
+      .eq("status", "open")
+      .then(({ data }) => setMyLost(data ?? []));
+    supabase
+      .from("profiles")
+      .select("contact_info")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setContact((current) => current || data?.contact_info || ""));
+  }, [target, user]);
+
   const mutation = useMutation({
-    mutationFn: () => submitClaim({ data: { foundItemId: target!.id, message } }),
+    mutationFn: async () => {
+      const proofPhoto = photo && user ? await uploadItemPhoto(photo, user.id) : null;
+      return submitClaim({
+        data: {
+          foundItemId: target!.id,
+          lostItemId: lostItemId === "none" ? null : lostItemId,
+          whereWhen,
+          identifyingDetails: details,
+          message,
+          contactInfo: contact,
+          proofPhoto,
+        },
+      });
+    },
     onSuccess: () => {
-      toast.success("Claim sent to the finder.");
+      toast.success("Claim sent to the finder. Track it in My activity.");
+      setWhereWhen("");
+      setDetails("");
       setMessage("");
+      setPhoto(null);
       onClose();
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const ready = whereWhen.trim().length >= 2 && details.trim().length >= 5 && contact.trim().length >= 4;
+
   return (
     <Dialog open={Boolean(target)} onOpenChange={(open) => (open ? null : onClose())}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Claim “{target?.title}”</DialogTitle>
           <DialogDescription>
-            Describe something only the owner would know. The finder decides whether to release
-            contact details.
+            Tell the finder things only the owner would know. Your contact is shared only if they approve.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2">
-          <Label htmlFor="claim-message">Proof of ownership</Label>
-          <Textarea
-            id="claim-message"
-            rows={4}
-            maxLength={1000}
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
-            placeholder="Blue sticker on the back, lock screen shows a photo of my dog…"
-          />
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="claim-where">Where and when did you lose it?</Label>
+            <Input id="claim-where" maxLength={300} value={whereWhen} onChange={(e) => setWhereWhen(e.target.value)} placeholder="Library 2nd floor, Monday around 3pm" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="claim-details">Identifying details</Label>
+            <Textarea id="claim-details" rows={3} maxLength={1000} value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Colour, marks, stickers, what's inside, lock screen…" />
+          </div>
+          {myLost.length > 0 ? (
+            <div className="space-y-2">
+              <Label>Link your lost report (optional)</Label>
+              <Select value={lostItemId} onValueChange={setLostItemId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {myLost.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+          <div className="space-y-2">
+            <Label htmlFor="claim-photo">Proof photo (optional)</Label>
+            <Input id="claim-photo" type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="claim-note">Anything else? (optional)</Label>
+            <Textarea id="claim-note" rows={2} maxLength={1000} value={message} onChange={(e) => setMessage(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="claim-contact">How should the finder reach you?</Label>
+            <Input id="claim-contact" maxLength={160} value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Phone, Instagram, or campus email" />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || message.trim().length < 2}>
-            Send claim
+          <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || !ready}>
+            {mutation.isPending ? "Sending…" : "Send claim"}
           </Button>
         </DialogFooter>
       </DialogContent>
