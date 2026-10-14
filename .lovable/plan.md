@@ -22,7 +22,12 @@ After sending, the claimant can **add more info** to a pending claim from My act
 - Once the item is handed over, the finder taps "Mark handed over". The contact details then hide again for both people.
 - Borrowing on the resource shelf works the same way: contact details show while a loan is approved and hide once the item is returned.
 
-## 4. Darker theme
+## 4. Unlist an item
+- Your own lost reports, found items and shelf listings get an "Unlist" button on the card, in My activity and on the dashboard.
+- Unlisting hides the post from the board straight away and cancels any pending claims or borrow requests on it. The other people get a notification.
+- Unlisted posts stay in My activity under "Unlisted", with a "Relist" button.
+
+## 5. Darker theme
 - Make the whole app dark by default: deep near-black background, slightly lighter cards, soft borders.
 - Keep the lavender, periwinkle and cyan accents, the logo and the current fonts, so it still feels like CampusFind.
 - Check contrast on badges, buttons and form fields.
@@ -32,5 +37,6 @@ After sending, the claimant can **add more info** to a pending claim from My act
 - New `claim_messages` table (claim_id, author_id, body, created_at). Only the claimant, the finder and admins can read it, and inserts are limited to those two people while the claim is open.
 - New `meeting_note` column on `item_claims` (nullable), plus a `handed_over` claim status.
 - Contact access: allowed only while the claim or borrow is `approved`. `returned` and `handed_over` revoke it.
+- Unlist: new `is_listed` boolean (default true) on lost, found and resource tables. Board reads filter to listed posts, and only the owner can toggle it, through a server function.
 - Theme: switch the `:root` tokens in `src/styles.css` to the dark palette (the semantic tokens stay the same).
 - Verify the full flow end to end with two signed-in test accounts: post, claim, ask a question, reply, approve, see contact, mark handed over, and confirm the contact is hidden.
