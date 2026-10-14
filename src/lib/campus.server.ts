@@ -92,7 +92,7 @@ export interface PublicResource {
 
 export async function fetchLostItems(limit = 60, includeSamples = false): Promise<PublicLostItem[]> {
   const supabase = createPublicClient();
-  let query = supabase.from("lost_items").select(LOST_COLUMNS);
+  let query = supabase.from("lost_items").eq("is_listed", true).select(LOST_COLUMNS);
   if (!includeSamples) query = query.eq("is_sample", false);
   const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
@@ -101,7 +101,7 @@ export async function fetchLostItems(limit = 60, includeSamples = false): Promis
 
 export async function fetchFoundItems(limit = 60, includeSamples = false): Promise<PublicFoundItem[]> {
   const supabase = createPublicClient();
-  let query = supabase.from("found_items").select(FOUND_COLUMNS);
+  let query = supabase.from("found_items").eq("is_listed", true).select(FOUND_COLUMNS);
   if (!includeSamples) query = query.eq("is_sample", false);
   const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
@@ -110,7 +110,7 @@ export async function fetchFoundItems(limit = 60, includeSamples = false): Promi
 
 export async function fetchResources(limit = 60, includeSamples = false): Promise<PublicResource[]> {
   const supabase = createPublicClient();
-  let query = supabase.from("resource_listings").select(RESOURCE_COLUMNS);
+  let query = supabase.from("resource_listings").eq("is_listed", true).select(RESOURCE_COLUMNS);
   if (!includeSamples) query = query.eq("is_sample", false);
   const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
