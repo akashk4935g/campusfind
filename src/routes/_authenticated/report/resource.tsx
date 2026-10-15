@@ -63,6 +63,7 @@ function LendResourcePage() {
     },
     onSuccess: () => {
       toast.success("Added to the resource shelf.");
+      queryClient.invalidateQueries();
       navigate({ to: "/activity" });
     },
     onError: (error: Error) => toast.error(error.message),

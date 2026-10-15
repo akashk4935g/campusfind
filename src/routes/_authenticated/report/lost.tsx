@@ -62,6 +62,7 @@ function ReportLostPage() {
           ? `Report pinned — ${result.matches.length} possible match found.`
           : "Report pinned to the board.",
       );
+      queryClient.invalidateQueries();
       navigate({ to: "/activity" });
     },
     onError: (error: Error) => toast.error(error.message),

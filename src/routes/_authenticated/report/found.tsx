@@ -62,6 +62,7 @@ function ReportFoundPage() {
           ? `Posted — ${result.matches.length} open lost report looks similar.`
           : "Posted to the board.",
       );
+      queryClient.invalidateQueries();
       navigate({ to: "/activity" });
     },
     onError: (error: Error) => toast.error(error.message),
