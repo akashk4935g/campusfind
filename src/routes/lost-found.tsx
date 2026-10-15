@@ -80,10 +80,10 @@ function LostFoundPage() {
       </div>
     );
   }
-  return <LostFoundContent signedIn={Boolean(user)} />;
+  return <LostFoundContent signedIn={Boolean(user)} user={user} />;
 }
 
-function LostFoundContent({ signedIn }: { signedIn: boolean }) {
+function LostFoundContent({ signedIn, user }: { signedIn: boolean; user: User | null }) {
   const { data } = useSuspenseQuery(boardQuery(!signedIn));
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");

@@ -73,10 +73,10 @@ function ResourcesPage() {
       </div>
     );
   }
-  return <ResourcesContent signedIn={Boolean(user)} />;
+  return <ResourcesContent signedIn={Boolean(user)} user={user} />;
 }
 
-function ResourcesContent({ signedIn }: { signedIn: boolean }) {
+function ResourcesContent({ signedIn, user }: { signedIn: boolean; user: User | null }) {
   const { data } = useSuspenseQuery(resourcesQuery(!signedIn));
   const [target, setTarget] = useState<{ id: string; title: string } | null>(null);
 
