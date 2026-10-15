@@ -63,8 +63,20 @@ export const Route = createFileRoute("/resources")({
 });
 
 function ResourcesPage() {
-  const { user } = useAuth();
-  const signedIn = Boolean(user);
+  const { user, loading } = useAuth();
+  // Wait for the session before querying: the server prefetch is guest-only,
+  // and the signed-in shelf must load client-side with the viewer's token.
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-24 text-center text-sm text-muted-foreground">
+        Loading the shelf…
+      </div>
+    );
+  }
+  return <ResourcesContent signedIn={Boolean(user)} />;
+}
+
+function ResourcesContent({ signedIn }: { signedIn: boolean }) {
   const { data } = useSuspenseQuery(resourcesQuery(!signedIn));
   const [target, setTarget] = useState<{ id: string; title: string } | null>(null);
 

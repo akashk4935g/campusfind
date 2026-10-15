@@ -70,8 +70,20 @@ export const Route = createFileRoute("/lost-found")({
 });
 
 function LostFoundPage() {
-  const { user } = useAuth();
-  const signedIn = Boolean(user);
+  const { user, loading } = useAuth();
+  // Wait for the session before querying: the server prefetch is guest-only,
+  // and the signed-in board must load client-side with the viewer's token.
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-24 text-center text-sm text-muted-foreground">
+        Loading the board…
+      </div>
+    );
+  }
+  return <LostFoundContent signedIn={Boolean(user)} />;
+}
+
+function LostFoundContent({ signedIn }: { signedIn: boolean }) {
   const { data } = useSuspenseQuery(boardQuery(!signedIn));
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
