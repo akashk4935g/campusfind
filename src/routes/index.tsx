@@ -55,8 +55,22 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
-  const { user } = useAuth();
-  const signedIn = Boolean(user);
+  const { user, loading } = useAuth();
+  // Wait for the session before querying: the server prefetch is guest-only,
+  // and the signed-in board must load client-side with the viewer's token.
+  if (loading) return <BoardLoading />;
+  return <HomeContent signedIn={Boolean(user)} />;
+}
+
+function BoardLoading() {
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-24 text-center text-sm text-muted-foreground">
+      Loading the board…
+    </div>
+  );
+}
+
+function HomeContent({ signedIn }: { signedIn: boolean }) {
   const { data } = useSuspenseQuery(boardQuery(!signedIn));
 
   const feed = [

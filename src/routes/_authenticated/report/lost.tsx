@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -39,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/report/lost")({
 function ReportLostPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const submit = useServerFn(createLostItem);
 
   const [form, setForm] = useState({
@@ -62,6 +63,7 @@ function ReportLostPage() {
           ? `Report pinned — ${result.matches.length} possible match found.`
           : "Report pinned to the board.",
       );
+      queryClient.invalidateQueries();
       navigate({ to: "/activity" });
     },
     onError: (error: Error) => toast.error(error.message),

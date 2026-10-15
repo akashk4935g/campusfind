@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -39,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/report/resource")({
 function LendResourcePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const submit = useServerFn(createResource);
 
   const [form, setForm] = useState({
@@ -63,6 +64,7 @@ function LendResourcePage() {
     },
     onSuccess: () => {
       toast.success("Added to the resource shelf.");
+      queryClient.invalidateQueries();
       navigate({ to: "/activity" });
     },
     onError: (error: Error) => toast.error(error.message),

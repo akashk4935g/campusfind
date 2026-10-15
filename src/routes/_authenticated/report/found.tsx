@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -39,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/report/found")({
 function ReportFoundPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const submit = useServerFn(createFoundItem);
 
   const [form, setForm] = useState({
@@ -62,6 +63,7 @@ function ReportFoundPage() {
           ? `Posted — ${result.matches.length} open lost report looks similar.`
           : "Posted to the board.",
       );
+      queryClient.invalidateQueries();
       navigate({ to: "/activity" });
     },
     onError: (error: Error) => toast.error(error.message),

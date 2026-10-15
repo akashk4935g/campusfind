@@ -1,6 +1,7 @@
 import { queryOptions, useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import type { User } from "@supabase/supabase-js";
 import { Search, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -70,8 +71,20 @@ export const Route = createFileRoute("/lost-found")({
 });
 
 function LostFoundPage() {
-  const { user } = useAuth();
-  const signedIn = Boolean(user);
+  const { user, loading } = useAuth();
+  // Wait for the session before querying: the server prefetch is guest-only,
+  // and the signed-in board must load client-side with the viewer's token.
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-24 text-center text-sm text-muted-foreground">
+        Loading the board…
+      </div>
+    );
+  }
+  return <LostFoundContent signedIn={Boolean(user)} user={user} />;
+}
+
+function LostFoundContent({ signedIn, user }: { signedIn: boolean; user: User | null }) {
   const { data } = useSuspenseQuery(boardQuery(!signedIn));
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
